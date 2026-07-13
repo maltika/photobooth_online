@@ -11,9 +11,9 @@ function App() {
 
   const [started, setStarted] = useState(false);
 
-  if (!started) {
-    return <WelcomePage onStart={() => setStarted(true)} />;
-  }
+  // if (!started) {
+  //   return <WelcomePage onStart={() => setStarted(true)} />;
+  // }
 
   return (
     <div className="App" style={{

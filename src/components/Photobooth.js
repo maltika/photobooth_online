@@ -47,6 +47,7 @@ export default function PhotoBooth() {
     const [draggingSticker, setDraggingSticker] = useState(null);
     const [selectedSticker, setSelectedSticker] = useState(null);
     const row = { display: "flex", gap: 40, alignItems: "flex-start" };
+    const [cameraReady, setCameraReady] = useState(false);
 
     // useEffects
 
@@ -199,6 +200,13 @@ export default function PhotoBooth() {
         setCanTakePhoto(true);
     };
 
+    const clearPhotos = () => {
+        setPhotos([]);
+        setPhotoCount(0);
+        setCanTakePhoto(true);
+        setCountdown(null);
+    };
+
     const getCoords = e => {
         const r = canvasRef.current.getBoundingClientRect();
         return {
@@ -323,39 +331,21 @@ export default function PhotoBooth() {
         <div style={centerCol}>
             {/* top bar with back btn and text */}
             <div style={topBar}>
-                {selectedFrame && (
-                    <button
-                        style={{
-                            ...buttonStyle,
-                            position: "absolute",
-                            left: 0,
-                            top: 10,
-                            height: 40,
-                            padding: "0 16px",
-                            lineHeight: "40px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                        onClick={handleBack}
-                    > ← Back</button>
-                )}
-
                 <h1 style={titleBar}>
                     {!selectedFrame
                         ? "Choose your platten"
                         : mode === "photo"
-                            ? "Smile"
+                            ? "Take camera"
                             : "Let’s decorate"}
 
                 </h1>
+
             </div>
             <div style={mainContent} >
                 {!selectedFrame ? (
                     <div style={{ display: "flex", gap: 24 }}>
                         {frameOptions.map((src) => {
                             const isSelected = selectedFrame === src;
-
                             return (
                                 <img
                                     key={src}
@@ -386,6 +376,26 @@ export default function PhotoBooth() {
                     <div style={row}>
                         {/* Display frame */}
                         <div>
+                            {selectedFrame && (
+                                <button
+                                    style={{
+                                        marginBottom: 18,
+                                        // padding: "8px 16px",
+                                        border: "none",
+                                        fontSize: 20,
+                                        background: "white",
+                                        fontFamily: "Inria Serif",
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "start",
+                                        fontStyle: "italic",
+                                        fontWeight: "bold",
+                                    }}
+                                    onClick={handleBack}
+                                >
+                                    <img src="./assets/icon/Back.png" style={{ width: "23px", paddingRight: "5px", }} /> Back
+                                </button>
+                            )}
                             <canvas ref={canvasRef}
                                 style={{
                                     width: 200,
@@ -414,71 +424,78 @@ export default function PhotoBooth() {
                         <div>
                             {mode === "photo" && (
                                 <>
-                                    <div style={{ position: "relative", width: 400 }}>
-                                        {/* Webcam */}
-                                        <Webcam
-                                            audio={false}
-                                            ref={webcamRef}
-                                            screenshotFormat="image/png"
-                                            videoConstraints={videoConstraints}
-                                            mirrored={true}
-                                            style={{ width: "100%", }}
-                                        />
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40, }}>
+                                        <div style={webcamWrapper}>
+                                            {/* Webcam */}
+                                            <Webcam
+                                                audio={false}
+                                                ref={webcamRef}
+                                                screenshotFormat="image/png"
+                                                videoConstraints={videoConstraints}
+                                                mirrored={true}
+                                                onUserMedia={() => setCameraReady(true)}
+                                                style={{
+                                                    width: "100%",
+                                                    opacity: cameraReady ? 1 : 0,
+                                                    transition: "opacity .3s",
+                                                }}
+                                            />
+                                            {!cameraReady && (
+                                                <div style={cameraLoading}>
+                                                    Opening camera...
+                                                </div>
+                                            )}
 
-                                        {/* Overlay countdown */}
+                                            {/* Overlay countdown */}
 
-                                        {countdown != null && (
-                                            <div style={{
-                                                position: "absolute",
-                                                inset: 0,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                fontSize: 96,
-                                                fontWeight: "bold",
-                                                color: "white",
-                                                textShadow: "0 4px 20px rgba(0,0,0,0.6)",
-                                                background: "rgba(0,0,0,0.25)",
-                                                // borderRadius: 12,
-                                                pointerEvents: "none",
-                                            }}
-                                            >
-                                                {countdown}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Buttons */}
-                                    <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
-                                        {canTakePhoto && (
-                                            <>
-                                                <button style={buttonStyle} onClick={capturePhoto}>
-                                                    Take Photo
+                                            {countdown != null && (
+                                                <div style={
+                                                    countdownOverlay
+                                                }
+                                                >
+                                                    {countdown}
+                                                </div>
+                                            )}
+                                            {canTakePhoto && (
+                                                <button style={shutterButton} onClick={capturePhoto}>
+                                                    <img src="./assets/icon/Camera.png" style={{ width: "90%" }} />
                                                 </button>
-                                                <label style={{ ...buttonStyle, cursor: "pointer" }}>
-                                                    Upload
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        onChange={uploadPhoto}
-                                                        style={{ display: "none" }}
-                                                    />
-                                                </label>
-                                            </>
-                                        )}
-                                        {/* redo btn */}
-                                        {photoCount > 0 && (
-                                            <button style={{
-                                                ...buttonStyle,
-                                                fontSize: 22,
-                                                padding: "4px 10px"
-                                            }}
-                                                onClick={redoLastPhoto}
-                                            >
-                                                ⟳
-                                            </button>
-                                        )}
+                                            )}
+                                        </div>
 
+                                        {/* Buttons */}
+                                        <div
+                                            style={{
+                                                marginTop: 16,
+                                                display: "flex",
+                                                gap: 12,
+                                                width: "100%",
+                                            }}
+                                        >
+                                            <button
+                                                style={{
+                                                    ...buttonStyle,
+                                                    opacity: photoCount === 0 ? 0.5 : 1,
+                                                    cursor: photoCount === 0 ? "not-allowed" : "pointer",
+                                                }}
+                                                onClick={redoLastPhoto}
+                                                disabled={photoCount === 0}
+                                            >
+                                                REDO
+                                            </button>
+
+                                            <button
+                                                style={{
+                                                    ...buttonStyle,
+                                                    opacity: photoCount === 0 ? 0.5 : 1,
+                                                    cursor: photoCount === 0 ? "not-allowed" : "pointer",
+                                                }}
+                                                onClick={clearPhotos}
+                                                disabled={photoCount === 0}
+                                            >
+                                                CLEAR
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -524,15 +541,28 @@ const topBar = {
     alignItems: "center",
     justifyContent: "center",
 }
+// const buttonStyle = {
+//     padding: "10px 20px",
+//     fontSize: 20,
+//     cursor: "pointer",
+//     fontFamily: "CantikaCute",
+//     color: "#8c5b4a",
+//     border: "2px solid #8c5b4a",
+//     borderRadius: 8,
+//     background: "white"
+// };
 const buttonStyle = {
-    padding: "10px 20px",
+    flex: 1,
+    padding: "12px 0",
     fontSize: 20,
     cursor: "pointer",
-    fontFamily: "CantikaCute",
-    color: "#8c5b4a",
-    border: "2px solid #8c5b4a",
-    borderRadius: 8,
-    background: "white"
+    fontFamily: "Inria Serif",
+    fontWeight:"bold",
+    // color: "#8c5b4a",
+    border: "1px solid #424040",
+    borderRadius: 999,
+    background: "#f4ede1",
+    textAlign: "center",
 };
 
 const row = { display: "flex", gap: 40, alignItems: "flex-start" };
@@ -540,7 +570,7 @@ const frameThumb = {
     width: 180,
     cursor: "pointer",
     // borderRadius: 12,
-    border:"2px solid rgb(0, 0, 0,0.15)",
+    border: "2px solid rgb(0, 0, 0,0.15)",
     boxShadow: "0 8px 8px rgba(0,0,0,0.15)",
     // background:"white",
 };
@@ -551,7 +581,9 @@ const titleBar = {
     textAlign: "center",     // horizontal center
     width: "100%",            // occupy full width of top bar
     fontFamily: "Inria Serif",
-    color:"black",
+    fontSize: 50,
+    fontStyle:"italic",
+    color: "black",
 }
 
 const mainContent = {
@@ -561,3 +593,54 @@ const mainContent = {
     justifyContent: "center",
     alignItems: "flex-start",
 }
+const webcamWrapper = {
+    position: "relative",
+    width: 550,
+    height: 390,
+    overflow: "hidden",
+    padding: 20,
+    background: "white",
+    borderRadius: 5,
+    border: "1px solid #4D4D4D",
+    // boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+};
+
+const shutterButton = {
+    position: "absolute",
+    bottom: 30,
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: 45,
+    height: 45,
+    borderRadius: "50%",
+    border: "none",
+    background: "white",
+    fontSize: 22,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+};
+
+const countdownOverlay = {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 96,
+    fontWeight: "bold",
+    color: "white",
+    textShadow: "0 4px 20px rgba(0,0,0,0.6)",
+    background: "rgba(0,0,0,0.25)",
+    borderRadius: 14,
+    pointerEvents: "none",
+};
+const cameraLoading = {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "#f5f5f5",
+};
