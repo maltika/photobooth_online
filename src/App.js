@@ -1,11 +1,20 @@
 import './App.css';
-import React from 'react';
+import React,{ useState } from 'react';
 import Photobooth from './components/Photobooth';
+import WelcomePage from './components/WelcomePage';
 import './style/global.css';
+
 //logo
-const logoSrc = '/assets/logo/jiggleduo-logo.png';
+// const logoSrc = '/assets/logo/jiggleduo-logo.png';
 
 function App() {
+
+  const [started, setStarted] = useState(false);
+
+  if (!started) {
+    return <WelcomePage onStart={() => setStarted(true)} />;
+  }
+
   return (
     <div className="App" style={{
       minHeight: '100vh',
@@ -13,24 +22,6 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center',
     }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '1200px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '20px 32px',
-      }}>
-        <img src={logoSrc} alt="logo" style={{ width: 50}} />
-        <h1 style={{
-          fontFamily: 'Cantika Cute',
-          color: '#8c5b4a',
-          margin: 0,
-        }}>
-          Photo Booth Online
-        </h1>
-      </div>
-
       <div style={{
         flex: 1,
         width: '100%',
