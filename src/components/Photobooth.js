@@ -20,6 +20,10 @@ const videoConstraints = { width: 963, height: 678, facingMode: "user" };
 const SLOT_WIDTH = 963;
 const SLOT_HEIGHT = 678;
 
+const STICKER_BASE_SIZE = 150;
+const MIN_SCALE = 0.4;
+const MAX_SCALE = 2.5;
+
 
 export default function PhotoBooth() {
     const webcamRef = useRef(null);
@@ -93,16 +97,25 @@ export default function PhotoBooth() {
         ctx.drawImage(frameImgRef.current, 0, 0, frameWidth, frameHeight);
 
         stickers.forEach((s, i) => {
-            ctx.drawImage(s.img, s.x, s.y, 150, 150);
+            const size = STICKER_BASE_SIZE * (s.scale ?? 1);
+            const cx = s.x + size / 2;
+            const cy = s.y + size / 2;
+            const angle = ((s.rotation ?? 0) * Math.PI) / 180;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+            ctx.drawImage(s.img, -size / 2, -size / 2, size, size);
             if (i === selectedSticker) {
                 ctx.strokeStyle = "#ff7aa2";
                 ctx.lineWidth = 4;
-                ctx.strokeRect(s.x, s.y, 150, 150);
+                ctx.strokeRect(-size / 2, -size / 2, size, size);
             }
+            ctx.restore();
         });
     };
 
-    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount]);
+    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, mode]);
 
     const handleBack = () => {
         if (mode == "decorate") {
@@ -245,13 +258,15 @@ export default function PhotoBooth() {
         if (mode === "decorate") {
             for (let i = stickers.length - 1; i >= 0; i--) {
                 const s = stickers[i];
-                if (x >= s.x && x <= s.x + 150 && y >= s.y && y <= s.y + 150) {
+                const size = STICKER_BASE_SIZE * (s.scale ?? 1);
+                if (x >= s.x && x <= s.x + size && y >= s.y && y <= s.y + size) {
                     setDraggingSticker(i);
                     setSelectedSticker(i);
                     setDragOffset({ x: x - s.x, y: y - s.y });
                     return;
                 }
             }
+            setSelectedSticker(null); // เพิ่มบรรทัดนี้ — คลิกพื้นที่ว่างแล้ว deselect
         }
     };
 
@@ -290,6 +305,25 @@ export default function PhotoBooth() {
 
     const handleMouseUp = () => {
         setDraggingPhoto(null);
+
+        if (draggingSticker != null) {
+            const s = stickers[draggingSticker];
+            if (s) {
+                const size = STICKER_BASE_SIZE * (s.scale ?? 1);
+                const cx = s.x + size / 2;
+                const cy = s.y + size / 2;
+                const outOfBounds =
+                    cx < 0 || cy < 0 ||
+                    cx > canvasRef.current.width ||
+                    cy > canvasRef.current.height;
+
+                if (outOfBounds) {
+                    setStickers(prev => prev.filter((_, i) => i !== draggingSticker));
+                    setSelectedSticker(null);
+                }
+            }
+        }
+
         setDraggingSticker(null);
     };
 
@@ -297,19 +331,50 @@ export default function PhotoBooth() {
     const addSticker = src => {
         const img = new Image();
         img.src = src;
-        img.onload = () =>
-            setStickers(s => [...s, { img, x: 400, y: 100 }]);
+        img.onload = () => {
+            setStickers(s => {
+                const next = [...s, { img, x: 400, y: 100, scale: 1, rotation: 0 }];
+                setSelectedSticker(next.length - 1);
+                return next;
+            });
+        };
+    };
+
+    const setSelectedStickerScale = scale => {
+        if (selectedSticker == null) return;
+        const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+        setStickers(s => {
+            const u = [...s];
+            u[selectedSticker] = { ...u[selectedSticker], scale: clamped };
+            return u;
+        });
+    };
+
+    const nudgeSelectedStickerScale = delta =>
+        setSelectedStickerScale((stickers[selectedSticker]?.scale ?? 1) + delta);
+
+    const setSelectedStickerRotation = deg => {
+        if (selectedSticker == null) return;
+        setStickers(s => {
+            const u = [...s];
+            u[selectedSticker] = { ...u[selectedSticker], rotation: deg };
+            return u;
+        });
+    };
+
+    const nudgeSelectedStickerRotation = delta =>
+        setSelectedStickerRotation((stickers[selectedSticker]?.rotation ?? 0) + delta);
+
+    const handleDone = () => {
+        setSelectedSticker(null);
+        setMode("finish");
     };
 
     // delete Sticker
     useEffect(() => {
         const handleKeyDown = e => {
-            if (
-                (e.key === "Delete" || e.key === "Backspace") &&
-                selectedSticker != null &&
-                mode === "decorate"
-            ) {
-                setStickers(s => s.filter((_, i) => i != selectedSticker));
+            if ((e.key === "Delete" || e.key === "Backspace") && selectedSticker != null && mode === "decorate") {
+                setStickers(s => s.filter((_, i) => i !== selectedSticker));
                 setSelectedSticker(null);
             }
         };
@@ -336,7 +401,9 @@ export default function PhotoBooth() {
                         ? "Choose your platten"
                         : mode === "photo"
                             ? "Take camera"
-                            : "Let’s decorate"}
+                            : mode === "decorate"
+                                ? "Let’s decorate"
+                                : "Finish !"}
 
                 </h1>
 
@@ -371,6 +438,23 @@ export default function PhotoBooth() {
                                 />
                             )
                         })}
+                    </div>
+                ) : mode === "finish" ? (
+                    <div style={finishWrap}>
+                        <canvas
+                            ref={canvasRef}
+                            style={{
+                                width: 200,
+                                height: 500,
+                                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                            }}
+                        />
+                        <button
+                            style={{ ...buttonStyle, marginTop: 20, width: 220 }}
+                            onClick={downloadPhoto}
+                        >
+                            Download
+                        </button>
                     </div>
                 ) : (
                     <div style={row}>
@@ -414,9 +498,9 @@ export default function PhotoBooth() {
                                     display: "flex",
                                     justifyContent: "center",
                                 }}>
-                                    <button style={buttonStyle} onClick={downloadPhoto}>
+                                    {/* <button style={buttonStyle} onClick={downloadPhoto}>
                                         Download
-                                    </button>
+                                    </button> */}
                                 </div>
                             )}
                         </div>
@@ -501,17 +585,52 @@ export default function PhotoBooth() {
                             )}
 
                             {mode === "decorate" && (
-                                stickerOptions.map((src) => (
-                                    <img
-                                        key={src}
-                                        src={src}
-                                        alt="sticker"
-                                        onClick={() => addSticker(src)}
-                                        style={{ width: 50, cursor: "pointer" }}
-                                    />
-                                ))
-                            )
-                            }
+                                <div style={{ marginTop: 8 }}>
+                                    <div style={stickerGrid}>
+                                        {stickerOptions.map((src) => (
+                                            <img
+                                                key={src}
+                                                src={src}
+                                                alt="sticker"
+                                                onClick={() => addSticker(src)}
+                                                style={stickerThumb}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div style={toolboxBox}>
+                                        <div style={{ width: "100%", padding: 14, opacity: selectedSticker == null ? 0.4 : 1 }}>
+                                            <div style={toolboxRow}>
+                                                <button style={toolboxIconBtn} disabled={selectedSticker == null} onClick={() => nudgeSelectedStickerScale(-0.15)}>−</button>
+                                                <input
+                                                    type="range"
+                                                    min={MIN_SCALE}
+                                                    max={MAX_SCALE}
+                                                    step={0.05}
+                                                    disabled={selectedSticker == null}
+                                                    value={selectedSticker == null ? 1 : stickers[selectedSticker]?.scale ?? 1}
+                                                    onChange={(e) => setSelectedStickerScale(parseFloat(e.target.value))}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button style={toolboxIconBtn} disabled={selectedSticker == null} onClick={() => nudgeSelectedStickerScale(0.15)}>+</button>
+                                            </div>
+
+                                            <div style={{ ...toolboxRow, marginTop: 14, justifyContent: "center" }}>
+                                                <button style={toolboxIconBtn} disabled={selectedSticker == null} onClick={() => nudgeSelectedStickerRotation(-15)}>⟲</button>
+                                                <button style={toolboxIconBtn} disabled={selectedSticker == null} onClick={() => nudgeSelectedStickerRotation(15)}>⟳</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{
+                                        marginTop: 16,
+                                        display: "flex",
+                                        justifyContent: "center",
+                                    }}>
+                                        <button style={buttonStyle} onClick={handleDone}>Done</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
@@ -557,7 +676,7 @@ const buttonStyle = {
     fontSize: 20,
     cursor: "pointer",
     fontFamily: "Inria Serif",
-    fontWeight:"bold",
+    fontWeight: "bold",
     // color: "#8c5b4a",
     border: "1px solid #424040",
     borderRadius: 999,
@@ -582,7 +701,7 @@ const titleBar = {
     width: "100%",            // occupy full width of top bar
     fontFamily: "Inria Serif",
     fontSize: 50,
-    fontStyle:"italic",
+    fontStyle: "italic",
     color: "black",
 }
 
@@ -643,4 +762,41 @@ const cameraLoading = {
     justifyContent: "center",
     alignItems: "center",
     background: "#f5f5f5",
+};
+
+const stickerGrid = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 20,
+    justifyItems: "center",
+    marginBottom: 20,
+};
+const stickerThumb = { width: 60, cursor: "pointer" };
+const toolboxBox = {
+    width: "100%",
+    minHeight: 130,
+    borderRadius: 8,
+    // background: "#e2e2e2",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+};
+const toolboxHint = {
+    color: "#8a8a8a",
+    fontFamily: "Inria Serif",
+    fontSize: 14,
+    textAlign: "center",
+    padding: "0 16px",
+};
+const toolboxRow = { display: "flex", alignItems: "center", gap: 10 };
+const toolboxIconBtn = {
+    width: 30, height: 30, borderRadius: "50%",
+    border: "1px solid #424040", background: "white",
+    fontSize: 18, lineHeight: 1, cursor: "pointer",
+};
+const finishWrap = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    marginTop: 20,
 };
