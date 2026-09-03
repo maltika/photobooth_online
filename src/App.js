@@ -1,20 +1,10 @@
 import './App.css';
-import React,{ useState } from 'react';
+import React from 'react';
 import Photobooth from './components/Photobooth';
-import WelcomePage from './components/WelcomePage';
 import './style/global.css';
-
 //logo
 // const logoSrc = '/assets/logo/jiggleduo-logo.png';
-
 function App() {
-
-  const [started, setStarted] = useState(false);
-
-  // if (!started) {
-  //   return <WelcomePage onStart={() => setStarted(true)} />;
-  // }
-
   return (
     <div className="App" style={{
       minHeight: '100vh',
@@ -35,5 +25,4 @@ function App() {
     </div>
   );
 }
-
 export default App;

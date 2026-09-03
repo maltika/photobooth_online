@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import Webcam from "react-webcam";
 
 const frameOptions = [
@@ -24,18 +24,17 @@ const STICKER_BASE_SIZE = 150;
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 2.5;
 
+const SLOTS = [
+    { x: 120, y: 77 },
+    { x: 120, y: 802 },
+    { x: 120, y: 1525 },
+    { x: 120, y: 2252 }
+];
 
 export default function PhotoBooth() {
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
     const frameImgRef = useRef(null);
-
-    const slots = [
-        { x: 120, y: 77 },
-        { x: 120, y: 802 },
-        { x: 120, y: 1525 },
-        { x: 120, y: 2252 }
-    ];
 
     const [selectedFrame, setSelectedFrame] = useState(null);
     const [mode, setMode] = useState("photo");
@@ -55,19 +54,7 @@ export default function PhotoBooth() {
 
     // useEffects
 
-    // frames
-    useEffect(() => {
-        if (!selectedFrame) return;
-        const img = new Image();
-        img.src = selectedFrame;
-
-        img.onload = () => {
-            frameImgRef.current = img;
-            drawCanvas();
-        }
-    }, [selectedFrame]);
-
-    const drawCanvas = () => {
+    const drawCanvas = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas || !frameImgRef.current) return;
 
@@ -81,7 +68,7 @@ export default function PhotoBooth() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         photos.forEach(p => {
-            const slot = slots[p.slotIndex];
+            const slot = SLOTS[p.slotIndex];
             const drawW = p.img.width * p.scale;
             const drawH = p.img.height * p.scale;
             const dx = slot.x + p.offsetX;
@@ -113,12 +100,24 @@ export default function PhotoBooth() {
             }
             ctx.restore();
         });
-    };
+    }, [photos, stickers, selectedSticker]);
 
-    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, mode]);
+    // frames
+    useEffect(() => {
+        if (!selectedFrame) return;
+        const img = new Image();
+        img.src = selectedFrame;
+
+        img.onload = () => {
+            frameImgRef.current = img;
+            drawCanvas();
+        }
+    }, [selectedFrame, drawCanvas]);
+
+    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, mode, drawCanvas]);
 
     const handleBack = () => {
-        if (mode == "decorate") {
+        if (mode === "decorate") {
             setMode("photo");
             setCanTakePhoto(false);
             setStickers([]);
@@ -191,6 +190,8 @@ export default function PhotoBooth() {
         }, 1000);
     };
 
+    // Kept for future "upload your own photo" feature (e.g. wire up to an <input type="file"> onChange)
+    // eslint-disable-next-line no-unused-vars
     const uploadPhoto = e => {
         const file = e.target.files[0];
         if (!file) return;
@@ -234,7 +235,7 @@ export default function PhotoBooth() {
         if (mode === "photo") {
             for (let i = photos.length - 1; i >= 0; i--) {
                 const p = photos[i];
-                const slot = slots[p.slotIndex];
+                const slot = SLOTS[p.slotIndex];
                 const w = p.img.width * p.scale;
                 const h = p.img.height * p.scale;
 
@@ -277,7 +278,7 @@ export default function PhotoBooth() {
             setPhotos(prev => {
                 const updated = [...prev];
                 const p = updated[draggingPhoto];
-                const slot = slots[p.slotIndex];
+                const slot = SLOTS[p.slotIndex];
                 const w = p.img.width * p.scale;
                 const h = p.img.height * p.scale;
 
@@ -477,7 +478,7 @@ export default function PhotoBooth() {
                                     }}
                                     onClick={handleBack}
                                 >
-                                    <img src="./assets/icon/Back.png" style={{ width: "23px", paddingRight: "5px", }} /> Back
+                                    <img src="./assets/icon/Back.png" alt="Back" style={{ width: "23px", paddingRight: "5px", }} /> Back
                                 </button>
                             )}
                             <canvas ref={canvasRef}
@@ -542,7 +543,7 @@ export default function PhotoBooth() {
                                             )}
                                             {canTakePhoto && (
                                                 <button style={shutterButton} onClick={capturePhoto}>
-                                                    <img src="./assets/icon/Camera.png" style={{ width: "90%" }} />
+                                                    <img src="./assets/icon/Camera.png" alt="Take photo" style={{ width: "90%" }} />
                                                 </button>
                                             )}
                                         </div>
@@ -684,7 +685,6 @@ const buttonStyle = {
     textAlign: "center",
 };
 
-const row = { display: "flex", gap: 40, alignItems: "flex-start" };
 const frameThumb = {
     width: 180,
     cursor: "pointer",
@@ -780,13 +780,6 @@ const toolboxBox = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-};
-const toolboxHint = {
-    color: "#8a8a8a",
-    fontFamily: "Inria Serif",
-    fontSize: 14,
-    textAlign: "center",
-    padding: "0 16px",
 };
 const toolboxRow = { display: "flex", alignItems: "center", gap: 10 };
 const toolboxIconBtn = {
