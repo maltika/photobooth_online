@@ -543,7 +543,7 @@ export default function PhotoBooth() {
                                             )}
                                             {canTakePhoto && (
                                                 <button style={shutterButton} onClick={capturePhoto}>
-                                                    <img src="./assets/icon/Camera.png" alt="Take photo" style={{ width: "90%" }} />
+                                                    <img src="./assets/icon/Camera.png" alt="Shutter" style={{ width: "90%" }} />
                                                 </button>
                                             )}
                                         </div>
